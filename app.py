@@ -1,63 +1,53 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-from sklearn.linear_model import LinearRegression
+import logic
 
-# --- PHẦN 1: HUẤN LUYỆN MODEL (TRAIN) ---
-# Dữ liệu giả lập để dạy AI
-# Quy luật ngầm: Chi tiêu = 50% Thu nhập + (Tiết kiệm * 0.05) - (Người phụ thuộc * 1 triệu)
-data = {
-    'thu_nhap':        [10000000, 15000000, 20000000, 8000000, 50000000, 100000000], # Feature 1
-    'tiet_kiem':       [50000000, 20000000, 100000000, 5000000, 200000000, 1000000000], # Feature 2
-    'nguoi_phu_thuoc': [0, 1, 2, 0, 3, 4],                                              # Feature 3
-    'chi_tieu_goi_y':  [5000000, 7500000, 11000000, 4000000, 25000000, 45000000]        # Label (Cái cần dự đoán)
-}
+# --- CẤU HÌNH ---
+st.set_page_config(page_title="AI Financial Advisor", page_icon="🤖")
 
-# Tạo DataFrame
-df = pd.DataFrame(data)
+st.title("Ứng Dụng Tư Vấn Tài Chính Cá Nhân")
+st.markdown("Hệ thống sử dụng **Machine Learning (Linear Regression)** học từ dữ liệu của **5.000 khách hàng**.")
+st.write("---")
 
-# Chọn đúng 3 cột làm đầu vào (Input)
-X = df[['thu_nhap', 'tiet_kiem', 'nguoi_phu_thuoc']]
-y = df['chi_tieu_goi_y']
+# --- TRAIN MODEL ---
+with st.spinner('Đang huấn luyện AI với 5.000 bản ghi dữ liệu...'):
+    model, score = logic.train_model()
 
-# Khởi tạo và huấn luyện model Hồi quy tuyến tính
-model = LinearRegression()
-model.fit(X, y)
+# Hiển thị độ chính xác của Model (Để lòe thầy xíu :D)
+st.success(f"✅ Model đã học xong! Độ chính xác (R² Score): **{score*100:.2f}%**")
 
-# --- PHẦN 2: GIAO DIỆN WEB (STREAMLIT) ---
-st.title("💰 Ứng dụng tư vấn Tài chính Cá nhân")
-st.write("Nhập thông tin của bạn, Tôi sẽ tính toán mức chi tiêu an toàn hàng tháng.")
-
-# Tạo form nhập liệu (Đúng 3 ô nhập tương ứng với 3 cột lúc train)
+# --- INPUT ---
 col1, col2 = st.columns(2)
-
 with col1:
-    thu_nhap = st.number_input("1. Thu nhập hàng tháng (VNĐ)", value=15000000, step=1000000)
-    nguoi_phu_thuoc = st.number_input("3. Số người phụ thuộc", value=0, step=1)
-
+    thu_nhap = st.number_input("Thu nhập (VNĐ)", value=20000000, step=1000000)
+    nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", value=0)
 with col2:
-    tiet_kiem = st.number_input("2. Tiền tiết kiệm hiện có (VNĐ)", value=50000000, step=1000000)
+    tiet_kiem = st.number_input("Tiền tiết kiệm (VNĐ)", value=50000000, step=1000000)
 
-# Nút bấm dự đoán
-if st.button("Tính toán mức chi tiêu"):
-    # Chuẩn bị dữ liệu đầu vào (Phải đúng thứ tự: Thu nhập -> Tiết kiệm -> Người phụ thuộc)
-    input_data = np.array([[thu_nhap, tiet_kiem, nguoi_phu_thuoc]])
+# --- PREDICT ---
+if st.button("🔮 Dự đoán mức chi tiêu an toàn"):
+    ket_qua = logic.du_doan_chi_tieu(model, thu_nhap, tiet_kiem, nguoi_phu_thuoc)
     
-    try:
-        # Gọi model để dự đoán
-        ket_qua = model.predict(input_data)[0]
-        
-        # Làm đẹp kết quả
-        ket_qua_dep = f"{int(ket_qua):,}".replace(",", ".")
-        
-        # Hiện kết quả
-        st.success(f"💡 Mức chi tiêu gợi ý: {ket_qua_dep} VNĐ / tháng")
-        
-        # Logic đưa ra lời khuyên thêm
-        if ket_qua / thu_nhap > 0.7:
-            st.warning("⚠️ Cảnh báo: Mức chi này chiếm hơn 70% thu nhập!")
-        else:
-            st.info("✅ Mức chi tiêu này khá an toàn.")
-            
-    except Exception as e:
-        st.error(f"Có lỗi xảy ra: {str(e)}")
+    # Format tiền tệ
+    ket_qua_text = f"{int(ket_qua):,}".replace(",", ".")
+    thu_nhap_text = f"{int(thu_nhap):,}".replace(",", ".")
+    
+    st.markdown(f"### 💡 Gợi ý chi tiêu: <span style='color:green'>{ket_qua_text} VNĐ/tháng</span>", unsafe_allow_html=True)
+    
+    # Chart visual (Vẽ biểu đồ so sánh)
+    chart_data = {
+        "Khoản mục": ["Thu Nhập", "Chi Tiêu Gợi Ý", "Dư (Tiết kiệm)"],
+        "Số tiền": [thu_nhap, ket_qua, thu_nhap - ket_qua]
+    }
+    st.bar_chart(data=chart_data, x="Khoản mục", y="Số tiền")
+    
+    # Lời khuyên
+    ty_le = ket_qua / thu_nhap
+    if ty_le < 0.5:
+        st.info("Bạn quản lý tài chính rất tốt! Dư dả nhiều.")
+    elif ty_le > 0.8:
+        st.warning("Cảnh báo: Mức chi này hơi cao so với thu nhập!")
+    else:
+        st.success("Mức chi tiêu cân đối.")
+
+st.write("---")
+st.caption("Developed by [Tên Bạn] - Cloud Computing Project")
