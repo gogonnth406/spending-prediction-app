@@ -5,9 +5,23 @@ from sklearn.linear_model import LinearRegression
 def load_and_train():
     # Load data
     try:
-        df = pd.read_csv('dataset.csv')
-    except:
-        # Data dự phòng nếu lỗi file
+        # --- SỬA LỖI Ở ĐÂY ---
+        # 1. encoding='utf-8-sig': Để xóa ký tự lạ (BOM) ở đầu file nếu dùng Excel
+        # 2. skipinitialspace=True: Bỏ qua khoảng trắng thừa sau dấu phẩy
+        df = pd.read_csv('dataset.csv', encoding='utf-8-sig', skipinitialspace=True)
+        
+        # 3. Xóa sạch khoảng trắng ở tên cột (Ví dụ: "ThuNhap " -> "ThuNhap")
+        df.columns = df.columns.str.strip()
+        
+        # 4. Kiểm tra kỹ: Nếu không tìm thấy cột ThuNhap thì tự báo lỗi để nhảy xuống phần except
+        if 'ThuNhap' not in df.columns:
+            raise ValueError("Không tìm thấy cột ThuNhap")
+
+    except Exception as e:
+        # Nếu lỗi file hoặc sai tên cột -> Dùng Data dự phòng
+        # (In lỗi ra log để bạn biết nếu cần debug)
+        print(f"Lỗi đọc CSV: {e}. Đang dùng dữ liệu mẫu.") 
+        
         df = pd.DataFrame({
             'ThuNhap': [5000000, 10000000, 20000000],
             'NguoiPhuThuoc': [0, 1, 2],
@@ -50,7 +64,7 @@ def predict_financial_plan(model, thu_nhap, nguoi_phu_thuoc, muc_tieu_tiet_kiem)
 def get_allocation(tong_chi_tieu):
     # Chia tiền chi tiết
     return {
-        "🏠 Nhà cửa & Ăn uống (50%)": tong_chi_tieu * 0.5,
-        "☕ Vui chơi & Mua sắm (30%)": tong_chi_tieu * 0.3,
-        "📚 Phát triển bản thân (20%)": tong_chi_tieu * 0.2
+        "🏠 Nhà cửa & Ăn uống (50%)": int(tong_chi_tieu * 0.5),
+        "☕ Vui chơi & Mua sắm (30%)": int(tong_chi_tieu * 0.3),
+        "📚 Phát triển bản thân (20%)": int(tong_chi_tieu * 0.2)
     }
