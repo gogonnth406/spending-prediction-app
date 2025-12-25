@@ -168,7 +168,7 @@ with col_result:
             "“Tiền bạc là người đầy tớ tốt nhưng là người chủ tồi.”"
         ]
         random_quote = random.choice(quotes)
-        st.markdown(f"> *💬 **Câu nói hay:** {random_quote}*")
+        st.markdown(f"> *💬 **Châm ngôn để đời cho bạn:** {random_quote}*")
 
     else:
         # Màn hình chờ khi chưa bấm nút
@@ -176,6 +176,7 @@ with col_result:
         # Placeholder cho đẹp
         st.markdown("""
             <div style="text-align: center; color: #888; padding: 50px;">
-                <h3>🤖 AI đang chờ dữ liệu của bạn...</h3>
+                <h3>🤖 Chúng tôi ở đây để giúp bạn trở thành đại gia 😉 Cứ mơ mộng đi nhé!...</h3>
             </div>
         """, unsafe_allow_html=True)
+
