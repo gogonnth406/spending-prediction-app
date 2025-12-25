@@ -180,3 +180,4 @@ with col_result:
             </div>
         """, unsafe_allow_html=True)
 
+
