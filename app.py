@@ -1,19 +1,15 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import logic
 import random
 
 # --- 1. CẤU HÌNH TRANG & CSS ---
 st.set_page_config(page_title="Personal Finance AI", page_icon="💰", layout="wide")
 
-# CSS tùy chỉnh để làm đẹp giao diện (Header xanh, Card trắng, Nền xám)
+# CSS tùy chỉnh
 st.markdown("""
 <style>
-    /* Đổi màu nền tổng thể sang xám nhạt cho dịu mắt */
-    .stApp {
-        background-color: #f0f2f6;
-    }
+    /* 1. XÓA màu nền .stApp để tương thích với cả Light Mode và Dark Mode */
     
     /* Style cho Header xanh */
     .header-style {
@@ -28,27 +24,41 @@ st.markdown("""
     .header-style h1 {
         font-family: 'Sans-serif'; 
         font-weight: 700;
-        color: #ffffff !important;
+        color: #ffffff !important; /* Luôn giữ chữ trắng cho Header nền xanh */
         margin-bottom: 10px;
     }
     .header-style p {
         font-size: 1.2rem;
         opacity: 0.9;
+        color: #ffffff !important;
     }
 
     /* Style cho các Card (Khung trắng) */
     div.css-1r6slb0, div.stVerticalBlock {
-        /* CSS này tác động vào container của streamlit */
         gap: 1rem;
     }
     
     /* Làm đẹp metric box */
     div[data-testid="stMetric"] {
-        background-color: #ffffff;
+        background-color: #ffffff; /* Nền trắng */
         padding: 15px;
         border-radius: 10px;
         border: 1px solid #e0e0e0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        
+        /* QUAN TRỌNG: Ép màu chữ bên trong Card trắng thành màu đen 
+           để không bị lỗi tàng hình khi ở Dark Mode (chữ trắng nền trắng) */
+        color: #333333 !important; 
+    }
+    
+    /* Ép màu chữ tiêu đề nhỏ (Label) trong Metric thành màu tối */
+    div[data-testid="stMetric"] label {
+        color: #555555 !important;
+    }
+    
+    /* Ép màu số liệu (Value) trong Metric thành màu xanh đậm cho nổi */
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        color: #4b6cb7 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -62,7 +72,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 3. LOAD LOGIC ---
-# (Cache để không phải train lại mô hình mỗi lần reload)
 @st.cache_resource
 def get_model():
     return logic.load_and_train()
@@ -78,19 +87,19 @@ with col_input:
         st.subheader("📝 Nhập thông tin")
         st.write("---")
         
+        # Đã xóa format="%d" để Streamlit tự động thêm dấu phẩy ngăn cách (VD: 15,000,000)
         thu_nhap = st.number_input("Thu nhập hàng tháng (VNĐ)", 
-                                   value=15000000, step=500000, format="%d")
+                                   value=15000000, step=500000)
         
         muc_tieu = st.number_input("Mục tiêu tiết kiệm (VNĐ)", 
-                                   value=50000000, step=1000000, format="%d",
+                                   value=50000000, step=1000000,
                                    help="Ví dụ: Mua xe, mua laptop...")
         
-        # Đã đổi Slider thành Number Input có mũi tên lên xuống theo yêu cầu
         nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", 
                                           min_value=0, max_value=20, value=0, step=1,
                                           help="Con cái, bố mẹ già...")
         
-        st.write("") # Khoảng trống
+        st.write("") 
         btn_predict = st.button("🚀 Phân Tích", type="primary", use_container_width=True)
 
 # === CỘT PHẢI: KẾT QUẢ ===
@@ -117,9 +126,8 @@ with col_result:
         
         with c_chart:
             st.write("**📈 Lộ trình tài sản tăng trưởng**")
-            # Tạo dữ liệu giả lập lộ trình
             if tien_du > 0:
-                months_list = range(1, int(thang) + 5) # Vẽ dư ra vài tháng
+                months_list = range(1, int(thang) + 5)
                 savings_progress = [min(m * tien_du, muc_tieu * 1.1) for m in months_list]
                 
                 chart_data = pd.DataFrame({
@@ -138,10 +146,9 @@ with col_result:
 
         st.divider()
 
-        # --- PHẦN 3: GÓC LỜI KHUYÊN & ĐỘNG LỰC (MỚI) ---
+        # --- PHẦN 3: GÓC LỜI KHUYÊN & ĐỘNG LỰC ---
         st.subheader("💡 Góc Lời Khuyên & Động Lực")
         
-        # 1. Logic lời khuyên
         ty_le_tiet_kiem = (tien_du / thu_nhap) * 100 if thu_nhap > 0 else 0
         
         if tien_du <= 0:
@@ -159,7 +166,6 @@ with col_result:
             
         st.info(f"{icon} {advice}")
 
-        # 2. Random câu trâm ngôn (Quotes)
         quotes = [
             "“Đừng tiết kiệm những gì còn lại sau khi chi tiêu, hãy chi tiêu những gì còn lại sau khi tiết kiệm.” – Warren Buffett",
             "“Một xu tiết kiệm được là một xu kiếm được.” – Benjamin Franklin",
@@ -171,13 +177,11 @@ with col_result:
         st.markdown(f"> *💬 **Châm ngôn để đời cho bạn:** {random_quote}*")
 
     else:
-        # Màn hình chờ khi chưa bấm nút
         st.info("👈 Bạn hãy nhập thu nhập và mục tiêu ở cột bên trái, rồi bấm nút **'Phân Tích'** nhé!")
-        # Placeholder cho đẹp
+        # ĐÃ SỬA: Thêm thẻ <br> để xuống dòng
         st.markdown("""
             <div style="text-align: center; color: #888; padding: 50px;">
-                <h3>🤖 Chúng tôi ở đây để giúp bạn trở thành đại gia 😉 Cứ mơ mộng đi nhé!...</h3>
+                <h3>🤖 Chúng tôi ở đây để giúp bạn trở thành đại gia <br> 😉 Cứ mơ mộng đi nhé!...</h3>
             </div>
         """, unsafe_allow_html=True)
-
 
