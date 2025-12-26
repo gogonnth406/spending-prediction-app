@@ -87,16 +87,16 @@ with col_input:
         st.subheader("📝 Nhập thông tin")
         st.write("---")
         
-        # Đã xóa format="%d" để Streamlit tự động thêm dấu phẩy ngăn cách (VD: 15,000,000)
+        # CẬP NHẬT: Thêm format="%d" để hiển thị số nguyên gọn gàng (VD: 15000000), bỏ đuôi .00
         thu_nhap = st.number_input("Thu nhập hàng tháng (VNĐ)", 
-                                   value=15000000, step=500000)
+                                   value=15000000, step=500000, format="%d")
         
         muc_tieu = st.number_input("Mục tiêu tiết kiệm (VNĐ)", 
-                                   value=50000000, step=1000000,
+                                   value=50000000, step=1000000, format="%d",
                                    help="Ví dụ: Mua xe, mua laptop...")
         
         nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", 
-                                          min_value=0, max_value=20, value=0, step=1,
+                                          min_value=0, max_value=20, value=0, step=1, format="%d",
                                           help="Con cái, bố mẹ già...")
         
         st.write("") 
@@ -111,6 +111,8 @@ with col_result:
         # --- PHẦN 1: CÁC CON SỐ QUAN TRỌNG (METRICS) ---
         st.subheader("📊 Kết quả phân tích")
         m1, m2, m3 = st.columns(3)
+        
+        # Kết quả hiển thị vẫn có dấu phẩy ngăn cách đẹp đẽ (nhờ lệnh f"{...:,} đ")
         m1.metric("Chi tiêu đề xuất/tháng", f"{int(chi_tieu):,} đ", delta="Mức an toàn")
         m2.metric("Tiền dư để dành/tháng", f"{int(tien_du):,} đ", delta="Tích lũy", delta_color="normal")
         
@@ -184,4 +186,5 @@ with col_result:
                 <h3>🤖 Chúng tôi ở đây để giúp bạn trở thành đại gia <br> 😉 Cứ mơ mộng đi nhé!...</h3>
             </div>
         """, unsafe_allow_html=True)
+
 
