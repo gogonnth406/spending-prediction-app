@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import logic
 import random
-import re
 
 # --- 1. CẤU HÌNH TRANG & CSS ---
 st.set_page_config(page_title="Personal Finance AI", page_icon="💰", layout="wide")
@@ -89,19 +88,13 @@ with col_input:
         st.write("---")
         
         # CẬP NHẬT: Thêm format="%d" để hiển thị số nguyên gọn gàng (VD: 15000000), bỏ đuôi .00
-        str_thu_nhap = st.text_input("Thu nhập hàng tháng (VNĐ)", value="15,000,000")
-        try:
-            # Xóa dấu phẩy hoặc chấm để lấy số
-            thu_nhap = int(re.sub(r'[.,]', '', str_thu_nhap))
-        except:
-            thu_nhap = 0
-#===================================        
-        str_muc_tieu = st.text_input("Mục tiêu tiết kiệm (VNĐ)", 
-                                   value="50,000,000", help="Ví dụ: Mua xe, mua laptop...")
-        try:
-            muc_tieu = int(re.sub(r'[.,]', '', str_muc_tieu))
-        except:
-            muc_tieu = 0
+        thu_nhap = st.number_input("Thu nhập hàng tháng (VNĐ)", 
+                                   value=15000000, step=500000, format="%d")
+        
+        muc_tieu = st.number_input("Mục tiêu tiết kiệm (VNĐ)", 
+                                   value=50000000, step=1000000, format="%d",
+                                   help="Ví dụ: Mua xe, mua laptop...")
+
 #===================================                
         nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", 
                                           min_value=0, max_value=20, value=0, step=1, format="%d",
@@ -194,5 +187,6 @@ with col_result:
                 <h3>🤖 Chúng tôi ở đây để giúp bạn trở thành đại gia <br> 😉 Cứ mơ mộng đi nhé!...</h3>
             </div>
         """, unsafe_allow_html=True)
+
 
 
