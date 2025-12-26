@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 import logic
 import random
+import re
 
 # --- 1. CẤU HÌNH TRANG & CSS ---
 st.set_page_config(page_title="Personal Finance AI", page_icon="💰", layout="wide")
 
-# CSS tùy chỉnh
+# CSS GIỮ NGUYÊN CỦA BẠN
 st.markdown("""
 <style>
     /* 1. XÓA màu nền .stApp để tương thích với cả Light Mode và Dark Mode */
@@ -24,7 +25,7 @@ st.markdown("""
     .header-style h1 {
         font-family: 'Sans-serif'; 
         font-weight: 700;
-        color: #ffffff !important; /* Luôn giữ chữ trắng cho Header nền xanh */
+        color: #ffffff !important; 
         margin-bottom: 10px;
     }
     .header-style p {
@@ -40,30 +41,26 @@ st.markdown("""
     
     /* Làm đẹp metric box */
     div[data-testid="stMetric"] {
-        background-color: #ffffff; /* Nền trắng */
+        background-color: #ffffff; 
         padding: 15px;
         border-radius: 10px;
         border: 1px solid #e0e0e0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         
-        /* QUAN TRỌNG: Ép màu chữ bên trong Card trắng thành màu đen 
-           để không bị lỗi tàng hình khi ở Dark Mode (chữ trắng nền trắng) */
         color: #333333 !important; 
     }
     
-    /* Ép màu chữ tiêu đề nhỏ (Label) trong Metric thành màu tối */
     div[data-testid="stMetric"] label {
         color: #555555 !important;
     }
     
-    /* Ép màu số liệu (Value) trong Metric thành màu xanh đậm cho nổi */
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
         color: #4b6cb7 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. HEADER (HTML TÙY CHỈNH) ---
+# --- 2. HEADER (GIỮ NGUYÊN CỦA BẠN) ---
 st.markdown("""
 <div class="header-style">
     <h1>💰 DỰ ĐOÁN TÀI CHÍNH CÁ NHÂN</h1>
@@ -87,17 +84,24 @@ with col_input:
         st.subheader("📝 Nhập thông tin")
         st.write("---")
         
-        # CẬP NHẬT: Thêm format="%d" để hiển thị số nguyên gọn gàng (VD: 15000000), bỏ đuôi .00
-        thu_nhap = st.number_input("Thu nhập hàng tháng (VNĐ)", 
-                                   value=15000000, step=500000, format="%d")
+        # 1. Thu nhập (Cho phép nhập dấu phẩy/chấm)
+        str_thu_nhap = st.text_input("Thu nhập hàng tháng (VNĐ)", value="15,000,000")
+        try:
+            # Xóa dấu phẩy hoặc chấm để lấy số
+            thu_nhap = int(re.sub(r'[.,]', '', str_thu_nhap))
+        except:
+            thu_nhap = 0
         
-        muc_tieu = st.number_input("Mục tiêu tiết kiệm (VNĐ)", 
-                                   value=50000000, step=1000000, format="%d",
-                                   help="Ví dụ: Mua xe, mua laptop...")
-        
-        nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", 
-                                          min_value=0, max_value=20, value=0, step=1, format="%d",
-                                          help="Con cái, bố mẹ già...")
+        # 2. Mục tiêu (Cho phép nhập dấu phẩy/chấm)
+        str_muc_tieu = st.text_input("Mục tiêu tiết kiệm (VNĐ)", value="50,000,000", 
+                                     help="Ví dụ: Mua xe, mua laptop...")
+        try:
+            muc_tieu = int(re.sub(r'[.,]', '', str_muc_tieu))
+        except:
+            muc_tieu = 0
+
+        # 3. Người phụ thuộc (ĐÃ TRẢ VỀ DẠNG SLIDER NHƯ CŨ)
+        nguoi_phu_thuoc = st.slider("Số người phụ thuộc", 0, 10, 0)
         
         st.write("") 
         btn_predict = st.button("🚀 Phân Tích", type="primary", use_container_width=True)
@@ -105,18 +109,18 @@ with col_input:
 # === CỘT PHẢI: KẾT QUẢ ===
 with col_result:
     if btn_predict:
-        # Gọi hàm tính toán từ logic.py
+        # Gọi hàm tính toán
         chi_tieu, tien_du, thang = logic.predict_financial_plan(model, thu_nhap, nguoi_phu_thuoc, muc_tieu)
         
-        # --- PHẦN 1: CÁC CON SỐ QUAN TRỌNG (METRICS) ---
+        # --- PHẦN 1: METRICS ---
         st.subheader("📊 Kết quả phân tích")
         m1, m2, m3 = st.columns(3)
         
-        # Kết quả hiển thị vẫn có dấu phẩy ngăn cách đẹp đẽ (nhờ lệnh f"{...:,} đ")
-        m1.metric("Chi tiêu đề xuất/tháng", f"{int(chi_tieu):,} đ", delta="Mức an toàn")
-        m2.metric("Tiền dư để dành/tháng", f"{int(tien_du):,} đ", delta="Tích lũy", delta_color="normal")
+        # Format kết quả có dấu chấm phân cách cho đẹp
+        m1.metric("Chi tiêu đề xuất/tháng", f"{int(chi_tieu):,}".replace(",", ".") + " đ", delta="Mức an toàn")
+        m2.metric("Tiền dư để dành/tháng", f"{int(tien_du):,}".replace(",", ".") + " đ", delta="Tích lũy", delta_color="normal")
         
-        if thang > 120: # Hơn 10 năm
+        if thang > 120: 
             m3.metric("Thời gian đạt mục tiêu", "Rất lâu", delta="Cần điều chỉnh", delta_color="inverse")
         else:
             m3.metric("Thời gian đạt mục tiêu", f"{thang:.1f} tháng", delta="Khả thi")
@@ -144,11 +148,11 @@ with col_result:
             st.write("**📋 Gợi ý phân bổ chi tiêu**")
             allocation = logic.get_allocation(chi_tieu)
             for item, amount in allocation.items():
-                st.success(f"{item}\n\n**{int(amount):,} đ**")
+                st.success(f"{item}\n\n**{int(amount):,}".replace(",", ".") + " đ**")
 
         st.divider()
 
-        # --- PHẦN 3: GÓC LỜI KHUYÊN & ĐỘNG LỰC ---
+        # --- PHẦN 3: LỜI KHUYÊN & QUOTES ---
         st.subheader("💡 Góc Lời Khuyên & Động Lực")
         
         ty_le_tiet_kiem = (tien_du / thu_nhap) * 100 if thu_nhap > 0 else 0
@@ -180,11 +184,8 @@ with col_result:
 
     else:
         st.info("👈 Bạn hãy nhập thu nhập và mục tiêu ở cột bên trái, rồi bấm nút **'Phân Tích'** nhé!")
-        # ĐÃ SỬA: Thêm thẻ <br> để xuống dòng
         st.markdown("""
             <div style="text-align: center; color: #888; padding: 50px;">
                 <h3>🤖 Chúng tôi ở đây để giúp bạn trở thành đại gia <br> 😉 Cứ mơ mộng đi nhé!...</h3>
             </div>
         """, unsafe_allow_html=True)
-
-
