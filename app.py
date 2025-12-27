@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import logic
 import random
+import time
 
 # --- 1. CẤU HÌNH TRANG & CSS ---
 st.set_page_config(page_title="Personal Finance AI", page_icon="💰", layout="wide")
@@ -78,42 +79,79 @@ def get_model():
 
 model = get_model()
 
+# --- [BẮT BUỘC THÊM] KHỞI TẠO SESSION STATE ĐỂ TRÁNH LỖI ---
+if 'df_results' not in st.session_state:
+    st.session_state.df_results = None
+if 'mode' not in st.session_state:
+    st.session_state.mode = 'individual'
+if 'single_data' not in st.session_state:
+    st.session_state.single_data = None
+
 # --- 4. BỐ CỤC CHÍNH (2 CỘT) ---
 col_input, col_result = st.columns([1, 2], gap="medium")
 
 # === CỘT TRÁI: NHẬP LIỆU ===
 with col_input:
     with st.container(border=True): # Tạo khung viền
-        st.subheader("📝 Nhập thông tin")
-        st.write("---")
+        # TẠO 2 TAB CHUYỂN ĐỔI
+        tab1, tab2 = st.tabs(["👤 Cá Nhân", "📂 Danh Sách (List)"])
         
-        # CẬP NHẬT: Thêm format="%d" để hiển thị số nguyên gọn gàng (VD: 15000000), bỏ đuôi .00
-        thu_nhap = st.number_input("Thu nhập hàng tháng (VNĐ)", 
-                                   value=15000000, step=500000, format="%d")
-        
-        muc_tieu = st.number_input("Mục tiêu tiết kiệm (VNĐ)", 
-                                   value=50000000, step=1000000, format="%d",
-                                   help="Ví dụ: Mua xe, mua laptop...")
+        # ---------------------- TAB 1: CÁ NHÂN -------------------
+        with tab1:
+            st.subheader("Dự đoán Cá nhân")
+            # CẬP NHẬT: Thêm format="%d" để hiển thị số nguyên gọn gàng
+            thu_nhap = st.number_input("Thu nhập hàng tháng (VNĐ)", 
+                                      value=15000000, step=500000, format="%d")
+            muc_tieu = st.number_input("Mục tiêu tiết kiệm (VNĐ)", 
+                                      value=50000000, step=1000000, format="%d",
+                                      help="Ví dụ: Mua xe, mua laptop...")
+            nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", 
+                                             min_value=0, max_value=20, value=0, step=1, format="%d",
+                                             help="Con cái, bố mẹ già...")
+            st.write("")
+            if st.button("🚀 Phân Tích", type="primary", use_container_width=True):
+                st.session_state.mode = 'individual'
+                # Lưu dữ liệu cá nhân vào session để bên kia đọc
+                st.session_state.single_data = (thu_nhap, muc_tieu, nguoi_phu_thuoc)
 
-#===================================                
-        nguoi_phu_thuoc = st.number_input("Số người phụ thuộc", 
-                                          min_value=0, max_value=20, value=0, step=1, format="%d",
-                                          help="Con cái, bố mẹ già...")
-        
-        st.write("") 
-        btn_predict = st.button("🚀 Phân Tích", type="primary", use_container_width=True)
+        # ----------------------- TAB 2: DANH SÁCH -------------------------------
+        with tab2:
+            st.subheader("Dự đoán theo List")
+            st.info("File Excel/CSV cần có cột: 'Ten', 'Thu Nhap', 'Muc Tieu', 'Nguoi Phu Thuoc'")
+            
+            uploaded_file = st.file_uploader("Tải file lên", type=['csv', 'xlsx'])
+            
+            if uploaded_file is not None:
+                if st.button("🚀 Phân Tích List", type="primary", use_container_width=True):
+                    try:
+                        # Đọc file
+                        if uploaded_file.name.endswith('.csv'):
+                            df_input = pd.read_csv(uploaded_file)
+                        else:
+                            df_input = pd.read_excel(uploaded_file)
+                        
+                        # Chạy dự đoán
+                        with st.spinner('AI đang tính toán cho từng người...'):
+                            time.sleep(1) # Giả vờ load cho nguy hiểm
+                            st.session_state.df_results = logic.predict_batch(model, df_input)
+                            st.session_state.mode = 'list'
+                            st.success("Đã phân tích xong!")
+                            
+                    except Exception as e:
+                        st.error(f"Lỗi đọc file: {e}")
 
 # === CỘT PHẢI: KẾT QUẢ ===
 with col_result:
-    if btn_predict:
-        # Gọi hàm tính toán từ logic.py
-        chi_tieu, tien_du, thang = logic.predict_financial_plan(model, thu_nhap, nguoi_phu_thuoc, muc_tieu)
+    # --- TRƯỜNG HỢP 1: XEM CÁ NHÂN ---
+    if st.session_state.mode == 'individual' and st.session_state.single_data is not None:
+        tn, mt, npt = st.session_state.single_data
+        chi_tieu, tien_du, thang = logic.predict_financial_plan(model, tn, npt, mt)
         
         # --- PHẦN 1: CÁC CON SỐ QUAN TRỌNG (METRICS) ---
         st.subheader("📊 Kết quả phân tích")
         m1, m2, m3 = st.columns(3)
         
-        # Kết quả hiển thị vẫn có dấu phẩy ngăn cách đẹp đẽ (nhờ lệnh f"{...:,} đ")
+        # Kết quả hiển thị vẫn có dấu phẩy ngăn cách đẹp đẽ
         m1.metric("Chi tiêu đề xuất/tháng", f"{int(chi_tieu):,} đ", delta="Mức an toàn")
         m2.metric("Tiền dư để dành/tháng", f"{int(tien_du):,} đ", delta="Tích lũy", delta_color="normal")
         
@@ -131,7 +169,7 @@ with col_result:
             st.write("**📈 Lộ trình tài sản tăng trưởng**")
             if tien_du > 0:
                 months_list = range(1, int(thang) + 5)
-                savings_progress = [min(m * tien_du, muc_tieu * 1.1) for m in months_list]
+                savings_progress = [min(m * tien_du, mt * 1.1) for m in months_list]
                 
                 chart_data = pd.DataFrame({
                     "Tháng": months_list,
@@ -148,11 +186,11 @@ with col_result:
                 st.success(f"{item}\n\n**{int(amount):,} đ**")
 
         st.divider()
-
+        
         # --- PHẦN 3: GÓC LỜI KHUYÊN & ĐỘNG LỰC ---
         st.subheader("💡 Góc Lời Khuyên & Động Lực")
         
-        ty_le_tiet_kiem = (tien_du / thu_nhap) * 100 if thu_nhap > 0 else 0
+        ty_le_tiet_kiem = (tien_du / tn) * 100 if tn > 0 else 0
         
         if tien_du <= 0:
             advice = "⚠️ **Cảnh báo:** Bạn đang tiêu hết sạch thu nhập! Hãy cắt giảm ngay các khoản 'Vui chơi' và tìm cách tăng thu nhập phụ."
@@ -179,14 +217,73 @@ with col_result:
         random_quote = random.choice(quotes)
         st.markdown(f"> *💬 **Châm ngôn để đời cho bạn:** {random_quote}*")
 
+    # --- TRƯỜNG HỢP 2: XEM DANH SÁCH ---
+    elif st.session_state.mode == 'list' and st.session_state.df_results is not None:
+        st.subheader("🗂️ Danh sách tổng hợp")
+        
+        df_display = st.session_state.df_results
+        
+        # HIỂN THỊ BẢNG DỮ LIỆU CÓ THỂ CLICK CHỌN
+        event = st.dataframe(
+            df_display,
+            use_container_width=True,
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun" 
+        )
+        
+        st.divider()
+        
+        # XỬ LÝ KHI CLICK VÀO 1 DÒNG
+        if len(event.selection.rows) > 0:
+            # Lấy index của dòng được chọn
+            selected_index = event.selection.rows[0]
+            # Lấy dữ liệu của dòng đó
+            selected_row = df_display.iloc[selected_index]
+            
+            # Lấy tên (nếu có) để hiển thị tiêu đề cho thân thiện
+            user_name = selected_row.get('Ten', 'Người dùng')
+            
+            st.markdown(f"### 🔎 Chi tiết: <span style='color:#4b6cb7'>{user_name}</span>", unsafe_allow_html=True)
+            
+            # Lấy các chỉ số đã tính toán sẵn trong DataFrame
+            ct_val = selected_row['Chi Tiêu Gợi Ý']
+            td_val = selected_row['Tiền Dư/Tháng']
+            th_val = selected_row['Số Tháng Cần']
+            mt_val = selected_row['Muc Tieu'] 
+            
+            # 1. Metrics
+            c_m1, c_m2, c_m3 = st.columns(3)
+            c_m1.metric("Chi tiêu đề xuất", f"{int(ct_val):,} đ")
+            c_m2.metric("Tiền dư tích lũy", f"{int(td_val):,} đ")
+            c_m3.metric("Thời gian dự kiến", f"{th_val:.1f} tháng")
+            
+            # 2. Biểu đồ & Phân bổ 
+            c_chart, c_detail = st.columns([1.6, 1])
+            
+            with c_chart:
+                st.write("**📈 Lộ trình cá nhân hóa**")
+                if td_val > 0:
+                    months = range(1, int(th_val) + 5)
+                    assets = [min(m * td_val, mt_val * 1.1) for m in months]
+                    st.area_chart(pd.DataFrame({"Tháng": months, "Tài sản": assets}).set_index("Tháng"), color="#FF9800")
+                else:
+                    st.warning("Người này chi tiêu vượt thu nhập, không có biểu đồ tích lũy.")
+            
+            with c_detail:
+                st.write("**📋 Gợi ý chi tiêu chi tiết**")
+                allo = logic.get_allocation(ct_val)
+                for k, v in allo.items():
+                    st.info(f"{k}\n\n**{int(v):,} đ**")
+                    
+        else:
+            st.caption("👈 *Hãy click vào một dòng trong bảng trên để xem biểu đồ chi tiết và phân bổ chi tiêu của người đó.*")
+
     else:
-        st.info("👈 Bạn hãy nhập thu nhập và mục tiêu ở cột bên trái, rồi bấm nút **'Phân Tích'** nhé!")
+        st.info("👈 Vui lòng nhập thông tin hoặc tải file danh sách ở cột bên trái, rồi bấm nút **'Phân Tích'** nhé!")
         # ĐÃ SỬA: Thêm thẻ <br> để xuống dòng
         st.markdown("""
             <div style="text-align: center; color: #888; padding: 50px;">
                 <h3>🤖 Chúng tôi ở đây để giúp bạn trở thành đại gia <br> 😉 Cứ mơ mộng đi nhé!...</h3>
             </div>
         """, unsafe_allow_html=True)
-
-
-
