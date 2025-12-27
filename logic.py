@@ -68,3 +68,39 @@ def get_allocation(tong_chi_tieu):
         "☕ Vui chơi & Mua sắm (30%)": int(tong_chi_tieu * 0.3),
         "📚 Phát triển bản thân (20%)": int(tong_chi_tieu * 0.2)
     }
+
+#===========================================================================
+# --- PHẦN MỚI: XỬ LÝ DANH SÁCH (BATCH) ---
+def predict_batch(model, df_input):
+    """
+    Hàm này nhận vào DataFrame (file upload), chạy dự đoán cho từng dòng
+    và trả về DataFrame mới đã có kết quả.
+    """
+    # Tạo bản sao để không ảnh hưởng dữ liệu gốc
+    df_result = df_input.copy()
+    
+    # Tạo các list để chứa kết quả
+    list_chi_tieu = []
+    list_tien_du = []
+    list_thang = []
+    
+    # Duyệt từng dòng
+    for index, row in df_result.iterrows():
+        # Lấy dữ liệu từng người
+        tn = row.get('Thu Nhap', 0)
+        mt = row.get('Muc Tieu', 0)
+        npt = row.get('Nguoi Phu Thuoc', 0)
+        
+        # Gọi hàm dự đoán lẻ
+        ct, td, th = predict_financial_plan(model, tn, npt, mt)
+        
+        list_chi_tieu.append(ct)
+        list_tien_du.append(td)
+        list_thang.append(th)
+        
+    # Gán kết quả vào cột mới
+    df_result['Chi Tiêu Gợi Ý'] = list_chi_tieu
+    df_result['Tiền Dư/Tháng'] = list_tien_du
+    df_result['Số Tháng Cần'] = list_thang
+    
+    return df_result
